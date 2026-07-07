@@ -21,11 +21,13 @@ DATABASE_URL = "https://opensky-network.org/datasets/metadata/aircraftDatabase.c
 # Operator ICAO codes for the AirAsia Group AOCs.
 # Verify Philippines and Cambodia codes on ch-aviation before relying on them.
 GROUP_ICAO_CODES = {
-    "AXM",  # AirAsia Berhad (Malaysia)
-    "XAX",  # AirAsia X
-    "AIQ",  # Thai AirAsia
-    "TAX",  # Thai AirAsia X
-    "AWQ",  # Indonesia AirAsia
+    "AXM",  # AirAsia Malaysia (AK)
+    "XAX",  # AirAsia X (D7)
+    "AIQ",  # Thai AirAsia (FD)
+    "TAX",  # Thai AirAsia X (XJ)
+    "AWQ",  # Indonesia AirAsia (QZ)
+    "APG",  # AirAsia Philippines (Z2)
+    "KTC",  # AirAsia Cambodia (KT)
 }
 
 # Fallback: catch anything with AirAsia in the operator name
