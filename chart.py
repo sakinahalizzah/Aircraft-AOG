@@ -15,7 +15,7 @@ Purpose: a daily indicator of how much of the AirAsia Group fleet is not flying.
 2. In your account page, create an API client. Copy the client_id and client_secret into a file named `credentials.json` in this folder:
 
 ```json
-{"client_id": "sakinahalizzah-api-client", "client_secret": "2RIouSnEKVy8sZPSZiDJijiSj13wi2JF"}
+{"client_id": "CLIENT_ID", "client_secret": "CLIENT_SECRET"}
 ```
 
 3. Install dependencies:
