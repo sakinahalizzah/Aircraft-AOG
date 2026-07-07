@@ -1,36 +1,16 @@
-name: Daily AOG tracker
+import csv
+import os
+import time
+from datetime import datetime, timedelta, timezone
 
-on:
-  schedule:
-    - cron: "0 22 * * *"   # 22:00 UTC = 6:00 AM MYT
-  workflow_dispatch:        # allows manual runs from the Actions tab
+import pandas as pd
+import requests
 
-permissions:
-  contents: write
+from opensky_auth import TokenManager
 
-jobs:
-  run-tracker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+FLEET_FILE = "fleet.csv"
+HISTORY_DIR = "history"
+SUMMARY_FILE = "aog_history.csv"
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run tracker
-        env:
-          OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
-          OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
-        run: python tracker.py
-
-      - name: Commit results
-        run: |
-          git config user.name "aog-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add history/ aog_history.csv
-          git diff --staged --quiet || git commit -m "Daily AOG snapshot $(date -u +%F)"
-          git push
+LOOKBACK_DAYS = 10
+GROUNDED_THRESHOLD_DAYS = 7
