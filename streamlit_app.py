@@ -40,8 +40,8 @@ ICAO_TO_IATA = {"AXM": "AK", "XAX": "D7", "AIQ": "FD", "TAX": "XJ",
 
 REFRESH_SECONDS = 300  # cache TTL; also used to label "data as of"
 
-GITHUB_OWNER = st.secrets.get("GITHUB_OWNER", "")
-GITHUB_REPO = st.secrets.get("GITHUB_REPO", "")
+GITHUB_OWNER = st.secrets.get("GITHUB_OWNER", "sakinahalizzah")
+GITHUB_REPO = st.secrets.get("GITHUB_REPO", "https://github.com/sakinahalizzah/Aircraft-AOG")
 GITHUB_BRANCH = st.secrets.get("GITHUB_BRANCH", "main")
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")  # only needed for a private repo
 
