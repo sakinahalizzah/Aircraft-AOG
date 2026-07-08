@@ -54,10 +54,10 @@ def main():
 
     df = df.fillna("")
 
-    mask_code = df["operatoricao"].str.upper().isin(GROUP_ICAO_CODES)
-    mask_name = df["operator"].str.lower().str.contains(NAME_KEYWORD)
-    fleet = df[mask_code | mask_name].copy()
-
+    fleet = df[
+        df["operatoricao"].str.upper().isin(GROUP_ICAO_CODES.keys())
+        ].copy()
+    
     # Drop rows without a usable hex code
     fleet = fleet[fleet["icao24"].str.len() == 6]
     fleet = fleet.drop_duplicates(subset="icao24")

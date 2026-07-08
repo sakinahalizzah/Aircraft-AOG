@@ -34,7 +34,7 @@ import requests
 
 # ---------------------------------------------------------------- config
 
-LOOKBACK_DAYS = 30          # max window OpenSky allows per query
+LOOKBACK_DAYS = 29          # max window OpenSky allows per query
 IDLE_THRESHOLD = 3          # days without flying = IDLE
 AOG_THRESHOLD = 7           # days without flying = GROUNDED (AOG proxy)
 SLEEP_BETWEEN_CALLS = 1.2   # seconds, stay polite with the free API
