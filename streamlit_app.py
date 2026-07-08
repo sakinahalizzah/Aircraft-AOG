@@ -57,7 +57,7 @@ def _headers(raw: bool = True) -> dict:
 
 @st.cache_data(ttl=REFRESH_SECONDS, show_spinner=False)
 def gh_fetch_text(path: str) -> str:
-    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{path}"
+    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/{path}"
     resp = requests.get(url, headers=_headers(raw=True), params={"ref": GITHUB_BRANCH}, timeout=20)
     resp.raise_for_status()
     return resp.text
@@ -65,7 +65,7 @@ def gh_fetch_text(path: str) -> str:
 
 @st.cache_data(ttl=REFRESH_SECONDS, show_spinner=False)
 def gh_list_dir(path: str) -> list:
-    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{path}"
+    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/{path}"
     resp = requests.get(url, headers=_headers(raw=False), params={"ref": GITHUB_BRANCH}, timeout=20)
     resp.raise_for_status()
     return resp.json()
@@ -105,21 +105,6 @@ def load_data():
         fleet = pd.read_csv(StringIO(text), dtype=str)
     except Exception as e:
         problems.append(f"fleet.csv: {e}")
-
-    # ---- optional KLIA live snapshot
-    klia = pd.DataFrame()
-    try:
-        listing = gh_list_dir("")
-        klias = sorted(
-            (f["name"] for f in listing if re.match(r"^klia_snapshot_.*\.csv$", f["name"])),
-        )
-        if klias:
-            text = gh_fetch_text(klias[-1])
-            klia = pd.read_csv(StringIO(text), dtype={"icao24": str})
-    except Exception:
-        pass  # optional — don't surface as a problem
-
-    return trend, snapshot, fleet, klia, problems
 
 
 # ---------------------------------------------------------------- light theme
@@ -161,7 +146,7 @@ if not GITHUB_OWNER or not GITHUB_REPO:
 top_l, top_r = st.columns([3, 1])
 with top_l:
     st.title("AirAsia Group AOG Tracker")
-    st.caption("Grounded-fleet proxy · KLIA traffic monitor · source: OpenSky Network")
+    st.caption("Grounded-fleet proxy · Aircraft on ground monitor · source: OpenSky Network")
 with top_r:
     if st.button("Refresh now", use_container_width=True):
         st.cache_data.clear()
@@ -267,35 +252,6 @@ with col_b:
         st.altair_chart(chart, use_container_width=True)
     else:
         st.info("No snapshot data yet.")
-
-# ---------------------------------------------------------------- KLIA panel
-
-st.subheader("KLIA dashboard")
-klia_col, gauge_col = st.columns([1.5, 1])
-
-with klia_col:
-    if not klia.empty:
-        on_ground_n = int(klia["on_ground"].astype(str).str.lower().eq("true").sum())
-        group_rows = klia[klia["operator"].isin(ICAO_TO_IATA.keys())] if "operator" in klia.columns else klia.iloc[0:0]
-        merged = group_rows.merge(tracked[["icao24", "status"]], on="icao24", how="left") if not tracked.empty else group_rows
-        t3 = int((merged.get("status") == "IDLE").sum()) if "status" in merged.columns else 0
-        t7 = int(merged.get("status").isin(["GROUNDED", "NO_FLIGHTS_30D+"]).sum()) if "status" in merged.columns else 0
-
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Aircraft at KLIA", len(klia))
-        k2.metric("On ground at KLIA", on_ground_n)
-        k3.metric("Group idle T+3", t3)
-        k4.metric("Group grounded T+7", t7)
-    else:
-        st.info("No klia_snapshot_*.csv found in the repo yet — run klia_traffic.py and commit its output to enable this panel.")
-
-with gauge_col:
-    if not klia.empty:
-        frac = on_ground_n / len(klia) if len(klia) else 0
-        st.metric("On-ground share at KLIA", f"{frac*100:.0f}%")
-        st.progress(min(1.0, frac))
-    else:
-        st.metric("On-ground share at KLIA", "\u2014")
 
 # ---------------------------------------------------------------- detail table
 
