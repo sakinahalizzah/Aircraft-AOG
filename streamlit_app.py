@@ -6,7 +6,6 @@ Reads everything from GitHub (no file upload widgets):
     - aog_history.csv              -> trend chart
     - history/snapshot_*.csv (latest) -> per-tail status, summary cards, breakdowns
     - fleet.csv                    -> registration/operator/model reference
-    - klia_snapshot_*.csv (latest, optional) -> KLIA live traffic panel
 
 Configure the repo location and (for private repos) a token in
 .streamlit/secrets.toml — see secrets.toml.example in this folder.
@@ -106,20 +105,7 @@ def load_data():
     except Exception as e:
         problems.append(f"fleet.csv: {e}")
 
-    # ---- optional KLIA live snapshot
-    klia = pd.DataFrame()
-    try:
-        listing = gh_list_dir("")
-        klias = sorted(
-            (f["name"] for f in listing if re.match(r"^klia_snapshot_.*\.csv$", f["name"])),
-        )
-        if klias:
-            text = gh_fetch_text(klias[-1])
-            klia = pd.read_csv(StringIO(text), dtype={"icao24": str})
-    except Exception:
-        pass  # optional — don't surface as a problem
-
-    return trend, snapshot, fleet, klia, problems
+    return trend, snapshot, fleet, problems
 
 
 # ---------------------------------------------------------------- light theme
@@ -167,7 +153,7 @@ with top_r:
         st.cache_data.clear()
         st.rerun()
 
-trend, snapshot, fleet, klia, problems = load_data()
+trend, snapshot, fleet, problems = load_data()
 
 if problems:
     with st.expander("Data source warnings", expanded=False):
@@ -267,35 +253,6 @@ with col_b:
         st.altair_chart(chart, use_container_width=True)
     else:
         st.info("No snapshot data yet.")
-
-# ---------------------------------------------------------------- KLIA panel
-
-st.subheader("KLIA dashboard")
-klia_col, gauge_col = st.columns([1.5, 1])
-
-with klia_col:
-    if not klia.empty:
-        on_ground_n = int(klia["on_ground"].astype(str).str.lower().eq("true").sum())
-        group_rows = klia[klia["operator"].isin(ICAO_TO_IATA.keys())] if "operator" in klia.columns else klia.iloc[0:0]
-        merged = group_rows.merge(tracked[["icao24", "status"]], on="icao24", how="left") if not tracked.empty else group_rows
-        t3 = int((merged.get("status") == "IDLE").sum()) if "status" in merged.columns else 0
-        t7 = int(merged.get("status").isin(["GROUNDED", "NO_FLIGHTS_30D+"]).sum()) if "status" in merged.columns else 0
-
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Aircraft at KLIA", len(klia))
-        k2.metric("On ground at KLIA", on_ground_n)
-        k3.metric("Group idle T+3", t3)
-        k4.metric("Group grounded T+7", t7)
-    else:
-        st.info("No klia_snapshot_*.csv found in the repo yet — run klia_traffic.py and commit its output to enable this panel.")
-
-with gauge_col:
-    if not klia.empty:
-        frac = on_ground_n / len(klia) if len(klia) else 0
-        st.metric("On-ground share at KLIA", f"{frac*100:.0f}%")
-        st.progress(min(1.0, frac))
-    else:
-        st.metric("On-ground share at KLIA", "\u2014")
 
 # ---------------------------------------------------------------- detail table
 
