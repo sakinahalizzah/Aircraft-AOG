@@ -1,4 +1,5 @@
 # AirAsia Group AOG Proxy Tracker
+<a href="aog_dashboard.html" target="_blank">View Live Dashboard</a>
 
 Purpose: a daily indicator of how much of the AirAsia Group fleet is not flying. Grounded fleet is a leading indicator of traffic risk at KLIA, especially T2.
 
