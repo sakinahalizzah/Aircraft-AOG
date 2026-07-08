@@ -68,17 +68,30 @@ def get_token() -> str | None:
         print("No credentials found, using anonymous access (heavily rate limited).")
         return None
 
-    resp = requests.post(
-        TOKEN_URL,
-        data={
-            "grant_type": "client_credentials",
-            "client_id": client_id,
-            "client_secret": client_secret,
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
-    return resp.json()["access_token"]
+    for attempt in range(1, 4):
+        try:
+            resp = requests.post(
+                TOKEN_URL,
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return resp.json()["access_token"]
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            print(f"  Auth attempt {attempt}/3 failed ({e.__class__.__name__}).")
+            if attempt < 3:
+                time.sleep(10 * attempt)  # 10s, then 20s
+        except requests.exceptions.HTTPError as e:
+            # Bad credentials, server error, etc. — not a network issue, don't retry.
+            print(f"  Auth request failed: {e}")
+            break
+
+    print("  Could not obtain a token after retries. Falling back to anonymous access.")
+    return None
 
 
 # ---------------------------------------------------------------- core
