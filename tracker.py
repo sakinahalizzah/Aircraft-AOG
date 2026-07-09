@@ -34,7 +34,7 @@ import requests
 
 # ---------------------------------------------------------------- config
 
-LOOKBACK_DAYS = 29          # max window OpenSky allows per query
+LOOKBACK_DAYS = 29          # OpenSky requires the interval to be SMALLER than 30 days; exactly 30 gets rejected with a 400
 IDLE_THRESHOLD = 3          # days without flying = IDLE
 AOG_THRESHOLD = 7           # days without flying = GROUNDED (AOG proxy)
 SLEEP_BETWEEN_CALLS = 1.2   # seconds, stay polite with the free API
@@ -115,7 +115,13 @@ def last_flight_time(icao24: str, headers: dict) -> int | None:
         print("  Rate limited. Sleeping 60s...")
         time.sleep(60)
         return last_flight_time(icao24, headers)
-    resp.raise_for_status()
+    if resp.status_code >= 400:
+        # raise_for_status() alone discards the response body, which is
+        # exactly where OpenSky puts the specific reason for a 400/401/403.
+        body = resp.text[:300].replace("\n", " ")
+        raise requests.exceptions.HTTPError(
+            f"{resp.status_code} {resp.reason} for url: {resp.url} | body: {body}"
+        )
 
     flights = resp.json()
     if not flights:
@@ -185,7 +191,9 @@ def main():
     HISTORY_DIR.mkdir(exist_ok=True)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     snap_path = HISTORY_DIR / f"snapshot_{today}.csv"
-    snap.to_csv(snap_path, index=False)
+    tmp_snap_path = HISTORY_DIR / f"snapshot_{today}.csv.tmp"
+    snap.to_csv(tmp_snap_path, index=False)
+    os.replace(tmp_snap_path, snap_path)
 
     # ---- append to trend file
     tracked = snap[snap["status"] != "ERROR"]
@@ -203,7 +211,9 @@ def main():
         old = pd.read_csv(TREND_FILE)
         old = old[old["date"] != today]  # overwrite same-day reruns
         trend = pd.concat([old, trend], ignore_index=True)
-    trend.to_csv(TREND_FILE, index=False)
+    tmp_trend_path = TREND_FILE.with_suffix(".csv.tmp")
+    trend.to_csv(tmp_trend_path, index=False)
+    os.replace(tmp_trend_path, TREND_FILE)
 
     # ---- print the "so what"
     print("\n================ AOG PROXY SUMMARY ================")
@@ -225,6 +235,23 @@ def main():
         )
     print(f"\nSnapshot saved: {snap_path}")
     print(f"Trend file:     {TREND_FILE}")
+
+    # ---- sanity check: don't let a script that "ran fine" but got no real
+    # data (e.g. every call 400/403'd) report success. A completed script
+    # is not the same thing as good data.
+    error_n = (snap["status"] == "ERROR").sum()
+    error_pct = 100 * error_n / max(len(snap), 1)
+    ERROR_FAIL_THRESHOLD = 50  # % of fleet that errored before we call the run bad
+    if error_pct >= ERROR_FAIL_THRESHOLD:
+        print(
+            f"\nFAILING RUN: {error_n}/{len(snap)} aircraft ({error_pct:.0f}%) "
+            "came back ERROR. Data was still saved above for inspection, but "
+            "this is being treated as a failed run, not a successful one — "
+            "check the error messages above for the real cause (auth, rate "
+            "limit, or an OpenSky API change)."
+        )
+        return 1
+
     return 0
 
 
